@@ -3,9 +3,13 @@ import { Student, calculateRiskScore, getRiskLevel } from './types';
 const STORAGE_KEY = 'student-risk-analysis-data';
 
 const loadStudentsFromStorage = (): Student[] => {
-  // Clear existing data and start fresh
-  localStorage.removeItem(STORAGE_KEY);
-  return [];
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error loading students:', error);
+    return [];
+  }
 };
 
 export const saveStudentsToStorage = (students: Student[]): void => {
