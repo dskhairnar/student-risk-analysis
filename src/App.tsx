@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { initialStudents, generateStudentId } from './data';
+import { initialStudents, generateStudentId, saveStudentsToStorage } from './data';
 import { RiskIndicator } from './components/RiskIndicator';
 import { StudentDetails } from './components/StudentDetails';
 import { MetricsCard } from './components/MetricsCard';
@@ -18,8 +18,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const filteredStudents = selectedRisk === 'All' 
-    ? students 
+  const filteredStudents = selectedRisk === 'All'
+    ? students
     : students.filter(student => student.riskLevel === selectedRisk);
 
   const riskCounts = {
@@ -50,8 +50,10 @@ function App() {
         riskScore,
         riskLevel: getRiskLevel(riskScore)
       };
-      
-      setStudents(prev => [...prev, newStudent]);
+
+      const updatedStudents = [...students, newStudent];
+      setStudents(updatedStudents);
+      saveStudentsToStorage(updatedStudents);
       setShowAddForm(false);
       setError(null);
     } catch (err) {
@@ -152,11 +154,10 @@ function App() {
             <button
               key={risk}
               onClick={() => setSelectedRisk(risk as any)}
-              className={`px-4 py-2 rounded-lg ${
-                selectedRisk === risk
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 rounded-lg ${selectedRisk === risk
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
             >
               {risk}
             </button>
@@ -249,6 +250,36 @@ function App() {
         <AddStudentForm
           onClose={() => setShowAddForm(false)}
           onAdd={handleAddStudent}
+          onBulkAdd={async (students) => {
+            try {
+              setIsLoading(true);
+              const newStudents = students.map(studentData => {
+                const newStudentId = generateStudentId(students.map(s => s.student_id));
+                const studentWithId = {
+                  ...studentData,
+                  student_id: newStudentId
+                };
+                const riskScore = calculateRiskScore(studentWithId);
+                return {
+                  ...studentWithId,
+                  riskScore,
+                  riskLevel: getRiskLevel(riskScore)
+                };
+              });
+              setStudents(prevStudents => {
+                const updatedStudents = [...prevStudents, ...newStudents];
+                saveStudentsToStorage(updatedStudents);
+                return updatedStudents;
+              });
+              setShowAddForm(false);
+              setError(null);
+            } catch (err) {
+              console.error('Error adding students:', err);
+              setError('Failed to add students. Please try again.');
+            } finally {
+              setIsLoading(false);
+            }
+          }}
           isLoading={isLoading}
         />
       )}

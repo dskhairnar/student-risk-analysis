@@ -1,5 +1,20 @@
 import { Student, calculateRiskScore, getRiskLevel } from './types';
-import csvData from '../src/data.csv?raw';
+
+const STORAGE_KEY = 'student-risk-analysis-data';
+
+const loadStudentsFromStorage = (): Student[] => {
+  // Clear existing data and start fresh
+  localStorage.removeItem(STORAGE_KEY);
+  return [];
+};
+
+export const saveStudentsToStorage = (students: Student[]): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+  } catch (error) {
+    console.error('Error saving students:', error);
+  }
+};
 
 export const generateStudentId = (existingIds: string[]): string => {
   let counter = existingIds.length + 1;
@@ -36,4 +51,4 @@ const parseCSV = (csv: string): Student[] => {
   });
 };
 
-export const initialStudents = parseCSV(csvData);
+export const initialStudents = loadStudentsFromStorage();
