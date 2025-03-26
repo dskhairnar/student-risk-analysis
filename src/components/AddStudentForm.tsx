@@ -10,11 +10,11 @@ interface AddStudentFormProps {
   isLoading?: boolean;
 }
 
-export const AddStudentForm: React.FC<AddStudentFormProps> = ({ 
-  onClose, 
-  onAdd, 
-  onBulkAdd, 
-  isLoading = false 
+export const AddStudentForm: React.FC<AddStudentFormProps> = ({
+  onClose,
+  onAdd,
+  onBulkAdd,
+  isLoading = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<Omit<Student, 'riskScore' | 'riskLevel' | 'student_id'>[]>([{
@@ -54,10 +54,43 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const convertToPercentages = (student: typeof students[0]) => {
+    // Convert GPA to percentage (GPA is on 10.0 scale)
+    const percentage = (student.gpa || 0) * 10;
+    const previous_year_percentage = (student.previous_year_gpa || 0) * 10;
+
+    // Test scores are already in percentage
+    const math_percentage = student.math_score;
+    const science_percentage = student.science_score;
+    const english_percentage = student.reading_score;
+
+    return {
+      ...student,
+      percentage,
+      previous_year_percentage,
+      math_percentage,
+      science_percentage,
+      english_percentage,
+      // Initialize quarterly data with current values
+      q1_percentage: percentage,
+      q2_percentage: percentage,
+      q3_percentage: percentage,
+      q4_percentage: percentage,
+      q1_attendance: student.attendance,
+      q2_attendance: student.attendance,
+      q3_attendance: student.attendance,
+      q4_attendance: student.attendance,
+      q1_behavior_incidents: student.behavior_incidents,
+      q2_behavior_incidents: student.behavior_incidents,
+      q3_behavior_incidents: student.behavior_incidents,
+      q4_behavior_incidents: student.behavior_incidents
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmissionStatus('processing');
-    
+
     // Validate all students
     const validationResults = students.map(student => validateForm(student));
     const allStudentsValid = validationResults.every(isValid => isValid);
@@ -71,13 +104,16 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({
     }
 
     try {
+      // Convert all students' data to include required percentage fields
+      const studentsWithPercentages = students.map(student => convertToPercentages(student));
+
       if (students.length === 1) {
-        await onAdd(students[0]);
+        await onAdd(studentsWithPercentages[0]);
       } else if (onBulkAdd) {
-        await onBulkAdd(students);
+        await onBulkAdd(studentsWithPercentages);
       } else {
         // Fallback for when bulk add isn't available
-        for (const student of students) {
+        for (const student of studentsWithPercentages) {
           await onAdd(student);
         }
       }
@@ -109,12 +145,12 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({
       try {
         if (file.type === 'application/json') {
           const result = JSON.parse(event.target?.result as string);
-          
+
           if (Array.isArray(result)) {
-            const isValid = result.every(student => 
+            const isValid = result.every(student =>
               Object.keys(students[0]).every(key => key in student)
             );
-            
+
             if (isValid) {
               setStudents(result);
               setCurrentStudentIndex(0);
@@ -138,7 +174,7 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({
           const parsedData = XLSX.utils.sheet_to_json(sheet);
 
           if (parsedData.length > 0) {
-            const isValid = parsedData.every((row: any) => 
+            const isValid = parsedData.every((row: any) =>
               Object.keys(students[0]).every(key => key in row)
             );
 
@@ -205,9 +241,9 @@ export const AddStudentForm: React.FC<AddStudentFormProps> = ({
                 </p>
               )}
             </div>
-            <button 
-              onClick={onClose} 
-              className="text-gray-500 hover:text-gray-700" 
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
               disabled={isLoading || submissionStatus === 'processing'}
             >
               <X className="w-6 h-6" />
